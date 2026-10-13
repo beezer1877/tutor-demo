@@ -483,6 +483,23 @@ button:focus-visible { outline: 2px solid var(--pen); outline-offset: 2px; }
 .overlay h1 { font-size: 34px; }
 .recap li span { background: #fff; border: 1.5px solid var(--a-ok); }
 
+/* мобильная вертка: видимая высота с учетом адресной строки, ничего не сжимается */
+.btn, .foot, .composer, .bar { flex-shrink: 0; }
+.overlay { overflow-y: auto; justify-content: safe center; scrollbar-width: none; }
+.overlay > * { flex: none; }
+@media (max-width: 600px) {
+  .stage { height: 100vh; height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); }
+  .overlay { padding: 20px 18px; gap: 14px; }
+  .overlay h1 { font-size: 28px; }
+  .overlay p { font-size: 14px; line-height: 1.45; }
+  .recap li { font-size: 14.5px; }
+  .btn { height: 52px; }
+}
+@media (max-width: 600px) and (max-height: 640px) {
+  .cap { font-size: 21px; min-height: 48px; }
+  .rail { gap: 7px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .screen, .sheet, .scrim, .cbar i { transition-duration: .01s; }
   .seg.now, .msg, .paid, .free-note { animation: none; }
