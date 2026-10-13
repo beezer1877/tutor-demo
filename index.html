@@ -1,0 +1,922 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}</style>
+<title>Демо подбора репетиторов</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=Literata:opsz,wght@7..72,600;7..72,700&display=swap">
+<style>
+/* Layout: страница-тетрадь в клетку; сверху — пометка на полях (подпись шага), под ней — телефон с автопроигрышем */
+:root {
+  --paper: #eef1f6;
+  --grid: rgba(36, 67, 184, 0.07);
+  --ink: #1b2130;
+  --ink-2: #5a6378;
+  --rule: #d5dbe7;
+  --marker: #ffe36b;
+  --marker-ink: #1b2130;
+  --pen: #2443b8;
+  --bezel: #171b24;
+  --ctrl: #ffffff;
+
+  /* экран продукта — всегда светлый, как живой интерфейс */
+  --a-bg: #ffffff;
+  --a-surface: #f3f5f9;
+  --a-line: #e2e6ee;
+  --a-text: #151a25;
+  --a-muted: #687187;
+  --a-pen: #2443b8;
+  --a-pen-soft: #e9edfb;
+  --a-ok: #17805a;
+  --a-ok-soft: #e2f3eb;
+  --a-red: #cf3a2e;
+
+  --f-ui: "Golos Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --f-head: "Literata", "PT Serif", Georgia, serif;
+  --a-paper: #fbfcff;
+  --a-cell: #dfe7f5;
+  --a-margin: #ef9d95;
+  --a-stamp: #4a3fb8;
+  --a-stamp-soft: rgba(74, 63, 184, .07);
+  --f-hand: "Caveat", "Segoe Print", "Comic Sans MS", cursive;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0f131b; --grid: rgba(140, 165, 255, 0.07); --ink: #e7eaf2; --ink-2: #9aa3b6;
+    --rule: #2a3142; --bezel: #000000; --ctrl: #1a2030; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0f131b; --grid: rgba(140, 165, 255, 0.07); --ink: #e7eaf2; --ink-2: #9aa3b6;
+  --rule: #2a3142; --bezel: #000000; --ctrl: #1a2030; color-scheme: dark;
+}
+
+[hidden] { display: none !important; }
+html { height: 100%; box-sizing: border-box; }
+*, *::before, *::after { box-sizing: inherit; }
+body {
+  height: 100%;
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 22px 22px;
+  color: var(--ink);
+  font-family: var(--f-ui);
+}
+button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; padding: 0; }
+button:focus-visible { outline: 2px solid var(--pen); outline-offset: 2px; }
+
+.stage {
+  min-height: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px;
+  padding-block: 20px;
+  padding-inline: 16px;
+}
+
+/* ——— Рейка с подписью ——— */
+.rail { width: 390px; max-width: 100%; display: grid; gap: 10px; }
+.rail-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.step-label {
+  font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--ink-2); font-variant-numeric: tabular-nums;
+}
+.ctrls { display: flex; gap: 8px; }
+.ctrl {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--ctrl); border: 1px solid var(--rule); color: var(--ink);
+}
+.ctrl svg { width: 16px; height: 16px; }
+.ctrl:disabled { opacity: .35; cursor: default; }
+.segs { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; }
+.who { display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px 5px 8px; border-radius: 999px;
+  font-size: 13px; font-weight: 700; color: #fff; background: var(--who, #687187); transition: background .3s; }
+.who::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #fff; }
+.who.parent { --who: #2443b8; } .who.tutor { --who: #17805a; }
+.who-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.who, .step-label { white-space: nowrap; }
+.seg { height: 4px; border-radius: 2px; background: var(--rule); transition: background .3s; }
+.seg.done { background: var(--pen); }
+.seg.t.done, .seg.t.now { background: #17805a; }
+.seg.now { background: var(--pen); animation: blink 1.4s ease-in-out infinite; }
+@keyframes blink { 50% { opacity: .35; } }
+.cap {
+  min-height: 62px;
+  font-family: var(--f-hand); font-weight: 700; font-size: 27px; line-height: 1.12;
+  text-wrap: balance;
+  transition: opacity .25s;
+}
+.cap span {
+  background: var(--marker); color: var(--marker-ink);
+  padding: 0 7px; border-radius: 4px;
+  -webkit-box-decoration-break: clone; box-decoration-break: clone;
+}
+.cap.fade { opacity: 0; }
+
+/* ——— Телефон ——— */
+.device {
+  position: relative;
+  width: 390px; max-width: 100%;
+  height: min(800px, calc(100dvh - 200px));
+  min-height: 600px;
+  border: 10px solid var(--bezel);
+  border-radius: 48px;
+  background: var(--a-bg);
+  overflow: hidden;
+  box-shadow: 0 30px 60px -30px rgba(20, 30, 60, .45);
+}
+@media (max-width: 600px) {
+  .stage { height: 100%; min-height: 0; justify-content: flex-start; padding-block: 10px 12px; gap: 10px; }
+  .device { flex: 1; height: auto; min-height: 0; width: 100%; border-width: 0; border-radius: 24px;
+            box-shadow: 0 0 0 1px var(--rule), 0 16px 40px -24px rgba(20, 30, 60, .5); }
+  .cap { font-size: 24px; min-height: 54px; }
+}
+
+.app {
+  position: absolute; inset: 0;
+  font-family: var(--f-ui); font-size: 15px; color: var(--a-text); background: var(--a-bg);
+  overflow: hidden;
+}
+.app.paused *, .app.paused *::before, .app.paused *::after { animation-play-state: paused !important; }
+
+.screen {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  background: var(--a-bg);
+  transform: translateX(100%);
+  transition: transform .45s cubic-bezier(.2, .75, .2, 1), opacity .45s;
+}
+.screen.active { transform: none; }
+.screen.past { transform: translateX(-28%); opacity: 0; }
+.screen.swap { transform: translateY(6%); opacity: 0; }
+.screen.swap.active { transform: none; opacity: 1; }
+
+.bar {
+  flex: none; height: 54px;
+  display: flex; align-items: center; gap: 10px;
+  padding-inline: 16px;
+  border-bottom: 1px solid var(--a-line);
+}
+.back { font-size: 26px; line-height: 1; color: var(--a-muted); width: 18px; }
+.logo { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px; }
+.logo i { width: 22px; height: 22px; border-radius: 7px; background: var(--a-pen); position: relative; }
+.logo i::after { content: ""; position: absolute; left: 6px; top: 5px; width: 9px; height: 6px;
+  border-left: 2.5px solid #fff; border-bottom: 2.5px solid #fff; transform: rotate(-45deg); }
+.bar-act { margin-left: auto; font-size: 14px; font-weight: 600; color: var(--a-pen); }
+.bar-title { font-weight: 600; font-size: 15px; min-width: 0; }
+.bar-sub { font-size: 12px; color: var(--a-muted); }
+
+.scroll { position: relative; flex: 1; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; }
+.scroll::-webkit-scrollbar { display: none; }
+.pad { padding: 18px 16px 24px; display: flex; flex-direction: column; gap: 18px; }
+.foot { flex: none; padding: 12px 16px 16px; border-top: 1px solid var(--a-line); background: var(--a-bg); }
+
+.h1 { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -.01em; text-wrap: balance; }
+.lead { margin: -8px 0 0; color: var(--a-muted); font-size: 14px; line-height: 1.45; }
+.field { display: grid; gap: 9px; }
+.flabel { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--a-muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.chip {
+  padding: 9px 13px; border-radius: 999px;
+  border: 1px solid var(--a-line); background: var(--a-surface);
+  font-size: 14px; font-weight: 500;
+  transition: background .2s, color .2s, border-color .2s, transform .15s;
+}
+.chip.sel { background: var(--a-pen); border-color: var(--a-pen); color: #fff; }
+.grades .chip { width: 40px; height: 40px; padding: 0; border-radius: 12px; display: grid; place-items: center; font-variant-numeric: tabular-nums; }
+.pressed { transform: scale(.95); }
+
+.loading { display: flex; align-items: center; gap: 10px; color: var(--a-muted); font-size: 14px; }
+.spin { width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid var(--a-pen-soft); border-top-color: var(--a-pen); animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.btn {
+  width: 100%; height: 50px; border-radius: 14px;
+  background: var(--a-pen); color: #fff; font-weight: 600; font-size: 16px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  transition: transform .15s, opacity .2s;
+}
+.btn.off { opacity: .4; }
+.btn .spin { border-color: rgba(255,255,255,.35); border-top-color: #fff; }
+
+/* выдача */
+.qpill { background: var(--a-surface); border: 1px solid var(--a-line); border-radius: 999px; padding: 7px 12px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.found { font-size: 15px; }
+.found b { font-size: 20px; font-variant-numeric: tabular-nums; }
+.note { margin-top: -12px; font-size: 13px; color: var(--a-muted); display: flex; align-items: center; gap: 6px; }
+.note i { width: 8px; height: 8px; border-radius: 50%; background: var(--a-ok); flex: none; }
+.list { display: grid; gap: 10px; }
+.tcard {
+  display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 12px;
+  padding: 14px; border-radius: 16px; border: 1px solid var(--a-line); background: var(--a-bg);
+  transition: transform .15s, box-shadow .2s;
+}
+.tcard.top { box-shadow: 0 0 0 2px var(--a-ok-soft); }
+.ava { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 16px; color: #fff; }
+.ava.sm { width: 34px; height: 34px; font-size: 12px; }
+.ava.lg { width: 64px; height: 64px; font-size: 21px; }
+.c1 { background: #3f5bd0; } .c2 { background: #2f8a76; } .c3 { background: #a85a9c; } .c4 { background: #8a8f9d; }
+.tname { font-weight: 600; font-size: 16px; display: flex; align-items: center; gap: 6px; }
+.vbadge { width: 16px; height: 16px; border-radius: 50%; background: var(--a-pen); display: inline-grid; place-items: center; flex: none; }
+.vbadge::after { content: ""; width: 6px; height: 3.5px; border-left: 2px solid #fff; border-bottom: 2px solid #fff; transform: translateY(-1px) rotate(-45deg); }
+.tmeta { font-size: 13px; color: var(--a-muted); margin-top: 3px; }
+.trow { display: flex; margin-top: 10px; }
+.tname .price { margin-left: auto; }
+.rbadge { font-size: 12.5px; font-weight: 600; color: var(--a-ok); background: var(--a-ok-soft); padding: 4px 9px; border-radius: 8px; }
+.rbadge.none { color: var(--a-muted); background: var(--a-surface); font-weight: 500; }
+.price { font-weight: 700; font-size: 15px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.price small { font-weight: 500; color: var(--a-muted); font-size: 12px; }
+
+/* карточка */
+.prof { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 14px; align-items: center; }
+.prof h2 { margin: 0; font-size: 21px; }
+.vline { margin-top: 5px; display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--a-pen); font-weight: 600; }
+.facts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.fact { background: var(--a-surface); border-radius: 12px; padding: 10px 12px; }
+.fact b { display: block; font-size: 15px; font-variant-numeric: tabular-nums; }
+.fact span { font-size: 12px; color: var(--a-muted); }
+.sec-h { display: flex; align-items: baseline; justify-content: space-between; }
+.sec-h h3 { margin: 0; font-size: 17px; }
+.sec-h span { font-size: 13px; color: var(--a-muted); }
+.results { display: grid; gap: 8px; }
+.res {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  padding: 11px 12px; border-radius: 14px; background: var(--a-surface);
+  transition: background .35s, box-shadow .35s;
+}
+.res.lit { background: var(--a-ok-soft); box-shadow: inset 0 0 0 1.5px var(--a-ok); }
+.res-t { font-weight: 600; font-size: 14.5px; }
+.res-s { font-size: 12px; color: var(--a-ok); margin-top: 3px; display: flex; align-items: center; gap: 5px; }
+.res-s::before { content: ""; width: 5px; height: 3px; border-left: 1.8px solid currentColor; border-bottom: 1.8px solid currentColor; transform: translateY(-1px) rotate(-45deg); }
+.mark { display: flex; align-items: center; gap: 6px; font-family: var(--f-hand); font-weight: 700; font-size: 26px; line-height: 1; }
+.mark .from { color: var(--a-muted); }
+.mark .arr { font-family: var(--f-ui); font-size: 14px; color: var(--a-muted); }
+.mark .to { color: var(--a-red); width: 34px; height: 34px; border: 2px solid var(--a-red); border-radius: 50%; display: grid; place-items: center; }
+.mark.pts { font-size: 22px; }
+.mark.pts .to { width: auto; height: auto; border: 0; border-bottom: 2px solid var(--a-red); border-radius: 0; padding: 0 2px; }
+.sched { font-size: 14px; color: var(--a-muted); }
+
+/* обращение */
+.to-row { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+.ctx { font-size: 13px; background: var(--a-pen-soft); color: var(--a-pen); border-radius: 12px; padding: 10px 12px; line-height: 1.4; }
+.ctx b { display: block; font-size: 14.5px; }
+.q-h { font-weight: 600; font-size: 15px; }
+
+/* переписка */
+.chat-body { display: flex; flex-direction: column; gap: 10px; padding: 16px; }
+.msg { max-width: 82%; border-radius: 18px; padding: 10px 13px; font-size: 14.5px; line-height: 1.4; animation: pop .35s ease-out; }
+.msg.out { align-self: flex-end; background: var(--a-pen); color: #fff; border-bottom-right-radius: 6px; }
+.msg.in { align-self: flex-start; background: var(--a-surface); border-bottom-left-radius: 6px; }
+.msg.out dl { margin: 6px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; font-size: 13px; }
+.msg.out dt { opacity: .75; }
+.msg.out dd { margin: 0; font-weight: 500; }
+.typing { align-self: flex-start; background: var(--a-surface); border-radius: 18px; padding: 12px 14px; display: flex; gap: 4px; }
+.typing i { width: 6px; height: 6px; border-radius: 50%; background: var(--a-muted); animation: dot 1s infinite; }
+.typing i:nth-child(2) { animation-delay: .15s; } .typing i:nth-child(3) { animation-delay: .3s; }
+@keyframes dot { 50% { transform: translateY(-3px); opacity: .5; } }
+@keyframes pop { from { transform: translateY(8px); opacity: 0; } }
+.composer { flex: none; display: grid; gap: 8px; padding: 10px 16px 16px; border-top: 1px solid var(--a-line); }
+.book { height: 44px; border-radius: 12px; background: var(--a-pen-soft); color: var(--a-pen); font-weight: 600; font-size: 15px; transition: transform .15s; }
+.input { height: 40px; border-radius: 20px; background: var(--a-surface); color: var(--a-muted); font-size: 14px; display: flex; align-items: center; padding-inline: 14px; }
+
+.scrim { position: absolute; inset: 0; background: rgba(15, 20, 35, .35); opacity: 0; transition: opacity .3s; pointer-events: none; }
+.scrim.on { opacity: 1; }
+.sheet {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  background: var(--a-bg); border-radius: 22px 22px 0 0;
+  padding: 10px 16px 18px; display: grid; gap: 14px;
+  transform: translateY(105%); transition: transform .4s cubic-bezier(.2, .75, .2, 1);
+}
+.sheet.open { transform: none; }
+.grab { width: 40px; height: 4px; border-radius: 2px; background: var(--a-line); justify-self: center; }
+.sheet h3 { margin: 0; font-size: 18px; }
+.sum { display: flex; justify-content: space-between; align-items: baseline; padding: 12px; border-radius: 12px; background: var(--a-surface); }
+.sum b { font-size: 20px; font-variant-numeric: tabular-nums; }
+.sum span { font-size: 12px; color: var(--a-muted); }
+.paid { display: grid; justify-items: center; text-align: center; gap: 6px; padding-block: 10px 6px; animation: pop .35s ease-out; }
+.paid .ok { width: 56px; height: 56px; border-radius: 50%; background: var(--a-ok); display: grid; place-items: center; }
+.paid .ok::after { content: ""; width: 20px; height: 11px; border-left: 3.5px solid #fff; border-bottom: 3.5px solid #fff; transform: translateY(-3px) rotate(-45deg); }
+.paid b { font-size: 19px; }
+.paid span { font-size: 13.5px; color: var(--a-muted); }
+
+/* кабинет */
+.role { margin-left: auto; font-size: 12px; font-weight: 600; background: var(--a-ok-soft); color: var(--a-ok); padding: 4px 9px; border-radius: 8px; }
+.notice { display: flex; align-items: center; gap: 10px; background: var(--a-pen-soft); color: var(--a-pen); border-radius: 12px; padding: 10px 12px; font-size: 13.5px; font-weight: 600; }
+.notice i { width: 8px; height: 8px; border-radius: 50%; background: var(--a-pen); flex: none; }
+.pair { border: 1px solid var(--a-line); border-radius: 18px; padding: 14px; display: grid; gap: 14px; }
+.pair-h { display: flex; align-items: center; gap: 10px; }
+.pair-h b { display: block; font-size: 16px; }
+.pair-h span { font-size: 13px; color: var(--a-muted); }
+.cnt { display: grid; gap: 8px; }
+.cnt-top { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; color: var(--a-muted); }
+.cnt-top b { font-size: 17px; color: var(--a-text); font-variant-numeric: tabular-nums; }
+.skip { font-size: 12px; font-weight: 600; color: var(--a-pen); background: var(--a-pen-soft); border-radius: 6px; padding: 2px 7px; }
+.dots { display: grid; grid-template-columns: repeat(5, 1fr) 1.3fr; gap: 5px; }
+.dots i { height: 10px; border-radius: 5px; background: var(--a-line); transition: background .3s; }
+.dots i.on { background: var(--a-pen); }
+.dots i.free { background: repeating-linear-gradient(90deg, var(--a-ok-soft) 0 6px, transparent 6px 9px); box-shadow: inset 0 0 0 1px var(--a-ok); }
+.dots i.free.on { background: var(--a-ok); box-shadow: none; }
+.dots-lbl { display: grid; grid-template-columns: repeat(5, 1fr) 1.3fr; gap: 5px; font-size: 11px; color: var(--a-muted); text-align: center; font-variant-numeric: tabular-nums; }
+.rows { display: grid; gap: 7px; font-size: 14px; }
+.rows div { display: flex; justify-content: space-between; gap: 10px; font-variant-numeric: tabular-nums; }
+.rows .minus { color: var(--a-muted); }
+.rows .total { border-top: 1px dashed var(--a-line); padding-top: 8px; font-weight: 700; font-size: 16px; }
+.cap-bar { display: grid; gap: 6px; font-size: 13px; color: var(--a-muted); }
+.cap-bar b { color: var(--a-text); font-variant-numeric: tabular-nums; }
+.cbar { height: 8px; border-radius: 4px; background: var(--a-line); overflow: hidden; }
+.cbar i { display: block; height: 100%; width: 20%; background: var(--a-pen); transition: width .45s; }
+.free-note { display: flex; gap: 10px; align-items: center; background: var(--a-ok-soft); color: var(--a-ok); border-radius: 14px; padding: 12px; font-weight: 600; font-size: 14.5px; line-height: 1.35; animation: pop .4s ease-out; }
+.free-note .ok { width: 28px; height: 28px; border-radius: 50%; background: var(--a-ok); flex: none; display: grid; place-items: center; }
+.free-note .ok::after { content: ""; width: 10px; height: 6px; border-left: 2.5px solid #fff; border-bottom: 2.5px solid #fff; transform: translateY(-1px) rotate(-45deg); }
+
+.switch { position: absolute; inset: 0; z-index: 55; background: #17805a; color: #fff;
+  display: flex; flex-direction: column; justify-content: center; gap: 10px; padding: 28px;
+  opacity: 0; pointer-events: none; transition: opacity .35s; }
+.switch.on { opacity: 1; }
+.switch small { font-size: 13px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; opacity: .8; }
+.switch b { font-size: 30px; line-height: 1.1; text-wrap: balance; }
+.switch span { font-size: 15px; line-height: 1.45; opacity: .9; }
+.when { align-self: flex-start; font-size: 12.5px; font-weight: 600; color: var(--a-muted); background: var(--a-surface); border-radius: 8px; padding: 4px 9px; transition: background .3s, color .3s; }
+.when.ff { background: var(--a-pen-soft); color: var(--a-pen); }
+
+/* касание */
+.tap {
+  position: absolute; z-index: 40; width: 46px; height: 46px; margin: -23px 0 0 -23px;
+  border-radius: 50%; background: rgba(20, 24, 34, .28);
+  border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, .25);
+  opacity: 0; pointer-events: none;
+}
+.tap.go { animation: tapA .65s ease-out; }
+@keyframes tapA { 0% { opacity: 0; transform: scale(.4); } 25% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.5); } }
+
+/* старт и финал */
+.overlay {
+  position: absolute; inset: 0; z-index: 60;
+  background: var(--a-bg);
+  display: flex; flex-direction: column; justify-content: center; gap: 18px;
+  padding: 28px 24px;
+}
+.ov-mark { font-family: var(--f-hand); font-weight: 700; font-size: 22px; color: var(--a-red); }
+.overlay h1 { margin: 0; font-size: 30px; line-height: 1.1; letter-spacing: -.01em; text-wrap: balance; }
+.overlay p { margin: 0; color: var(--a-muted); font-size: 15px; line-height: 1.5; }
+.recap { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.recap li { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; font-size: 15.5px; line-height: 1.35; font-weight: 500; }
+.recap li span { width: 26px; height: 26px; border-radius: 50%; background: var(--a-ok-soft); display: grid; place-items: center; }
+.recap li span::after { content: ""; width: 9px; height: 5px; border-left: 2.2px solid var(--a-ok); border-bottom: 2.2px solid var(--a-ok); transform: translateY(-1px) rotate(-45deg); }
+.fine { font-size: 12.5px !important; }
+
+/* ——— Тетрадь и красная ручка: бумага в клетку, синяя ручка — действия, красная — отметки, фиолетовая печать — подтверждения ——— */
+.app, .screen, .overlay {
+  background-color: var(--a-paper);
+  background-image:
+    linear-gradient(var(--a-cell) 1px, transparent 1px),
+    linear-gradient(90deg, var(--a-cell) 1px, transparent 1px);
+  background-size: 18px 18px;
+  background-position: -1px -1px;
+}
+.bar { background: rgba(251, 252, 255, .94); border-bottom: 1.5px solid var(--a-cell); }
+.foot, .composer { background: rgba(251, 252, 255, .96); border-top: 1.5px solid var(--a-cell); }
+
+.logo { font-family: var(--f-head); font-weight: 700; font-size: 16px; gap: 0; position: relative; }
+.logo i { display: none; }
+.logo::after { content: ""; position: absolute; left: -2px; right: -4px; bottom: -5px; height: 6px;
+  background: no-repeat center / 100% 100% url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 8' preserveAspectRatio='none'%3E%3Cpath d='M2 5 C 50 1, 120 7, 198 3' fill='none' stroke='%23cf3a2e' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E"); }
+.h1, .prof h2, .sec-h h3, .sheet h3, .overlay h1, .switch b { font-family: var(--f-head); letter-spacing: 0; }
+.h1 { font-size: 30px; }
+.flabel { color: var(--a-red); font-family: var(--f-hand); font-size: 21px; font-weight: 700; letter-spacing: 0; text-transform: none; }
+
+/* выбор — обведено синей ручкой */
+.chip { background: rgba(255,255,255,.9); border: 1.5px solid #cfd8e8;
+  border-radius: 14px 18px 15px 19px / 18px 14px 19px 15px; }
+.chip.sel { background: var(--a-pen-soft); color: var(--a-pen); border: 2px solid var(--a-pen); }
+.grades .chip { border-radius: 9px 12px 10px 13px / 12px 9px 13px 10px; }
+.btn { border-radius: 12px; box-shadow: 0 2px 0 #142c80; font-family: var(--f-ui); }
+.book { background: #fff; border: 2px solid var(--a-pen); }
+
+/* выдача */
+.qpill { background: #fff; border: 1.5px solid var(--a-pen); color: var(--a-pen); border-radius: 10px; }
+.found { font-family: var(--f-head); font-size: 17px; }
+.found b { font-size: 28px; color: var(--a-pen); }
+.note i { background: var(--a-stamp); }
+.tcard { background: #fff; border: 1.5px solid #d6deec; border-radius: 6px; box-shadow: 0 1px 0 #d6deec; }
+.tcard.top { box-shadow: 0 1px 0 #d6deec; }
+.tname { font-family: var(--f-head); font-size: 16px; align-items: flex-start; }
+.tname .price { font-family: var(--f-ui); padding-top: 1px; }
+.ava { border-radius: 10px; font-family: var(--f-head); }
+.c1 { background: #2443b8; } .c2 { background: #2b7c6a; } .c3 { background: #8a4f86; } .c4 { background: #9aa1ae; }
+
+/* печать «подтверждено» */
+.rbadge, .res-s, .vline {
+  font-family: var(--f-ui); font-weight: 700; font-size: 11px; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--a-stamp); background: var(--a-stamp-soft);
+  border: 1.5px solid var(--a-stamp); border-radius: 5px;
+  box-shadow: inset 0 0 0 2px var(--a-paper), inset 0 0 0 3px rgba(74, 63, 184, .55);
+  padding: 4px 8px; display: inline-flex; align-items: center; gap: 6px;
+  transform: rotate(-1.5deg); width: max-content; max-width: 100%;
+}
+.rbadge.none { color: var(--a-muted); border-color: #c4cad6; background: transparent; box-shadow: none; transform: none;
+  text-transform: none; letter-spacing: 0; font-weight: 500; font-size: 12.5px; }
+.res-s::before { display: none; }
+.vline .vbadge { display: none; }
+.vbadge { background: var(--a-stamp); }
+
+/* карточка: результаты с отметками на полях */
+.facts .fact { background: #fff; border: 1.5px solid #d6deec; border-radius: 6px; }
+.fact b { font-family: var(--f-head); }
+.results { gap: 0; background: #fff; border: 1.5px solid #d6deec; border-radius: 6px; overflow: hidden; }
+.res { grid-template-columns: minmax(0, 1fr) 76px; padding: 0; gap: 0; border-radius: 0; background: transparent; border-bottom: 1px solid var(--a-cell); }
+.res:last-child { border-bottom: 0; }
+.res > div:first-child { padding: 12px 12px 12px 14px; display: grid; gap: 7px; justify-items: start; }
+.res .mark { align-self: stretch; justify-content: center; border-left: 2px solid var(--a-margin); padding-inline: 6px; }
+.res.lit { background: rgba(207, 58, 46, .06); box-shadow: none; }
+.res-t { font-family: var(--f-head); font-size: 15.5px; }
+.mark { font-size: 30px; }
+.mark .arr { display: none; }
+.mark .from { color: #a7aebb; text-decoration: line-through; text-decoration-color: var(--a-red); text-decoration-thickness: 2px; }
+.mark .to { width: 36px; height: 36px; border-radius: 48% 52% 45% 55% / 55% 45% 52% 48%; }
+.mark.pts { font-size: 24px; }
+.sched { font-family: var(--f-hand); font-size: 21px; color: var(--a-text); }
+
+/* обращение и переписка */
+.ctx { background: #fff; border: 1.5px dashed var(--a-pen); }
+.q-h { font-family: var(--f-head); font-size: 16px; }
+.msg.out { border-radius: 14px 14px 4px 14px; }
+.msg.in { background: #fff; border: 1.5px solid #d6deec; border-radius: 14px 14px 14px 4px; }
+.typing { background: #fff; border: 1.5px solid #d6deec; }
+.sheet { background: var(--a-paper); background-image: linear-gradient(var(--a-cell) 1px, transparent 1px), linear-gradient(90deg, var(--a-cell) 1px, transparent 1px); background-size: 18px 18px; }
+.sum { background: #fff; border: 1.5px solid #d6deec; }
+.sum b { font-family: var(--f-head); }
+.paid .ok { background: var(--a-stamp); }
+
+/* кабинет: клетки 1–5 */
+.role { background: #2b7c6a; color: #fff; }
+.pair { background: #fff; border: 1.5px solid #d6deec; border-radius: 6px; }
+.pair-h b { font-family: var(--f-head); }
+.dots { gap: 0; border: 1.5px solid #c9d3e6; border-radius: 4px; overflow: hidden; }
+.dots i { height: 38px; border-radius: 0; background: #fff; border-right: 1px solid #c9d3e6; display: grid; place-items: center; }
+.dots i:last-child { border-right: 0; }
+.dots i.on { background: #fff; }
+.dots i.on::after { content: "✓"; font-family: var(--f-hand); font-weight: 700; font-size: 30px; line-height: 1; color: var(--a-pen); animation: pop .3s ease-out; }
+.dots i.free { background: repeating-linear-gradient(-45deg, #fff 0 5px, var(--a-ok-soft) 5px 9px); box-shadow: none; }
+.dots i.free.on { background: var(--a-ok-soft); }
+.dots i.free.on::after { content: "свои"; font-size: 22px; color: var(--a-ok); }
+.dots-lbl { gap: 0; }
+.rows .total span:last-child { font-family: var(--f-head); font-size: 19px; }
+.cnt-top b { font-family: var(--f-head); }
+#feeNow { color: var(--a-red); }
+.cbar { height: 10px; background: #eef1f7; border-radius: 0; }
+.cbar i { background: var(--a-red); }
+.when { background: #fff; border: 1.5px solid #d6deec; }
+.when.ff { border-color: var(--a-pen); }
+.free-note { background: #fff; border: 2px solid var(--a-ok); }
+
+/* старт и финал */
+.overlay { border-right: 0; }
+.overlay::before { content: ""; position: absolute; top: 0; bottom: 0; right: 30px; width: 2px; background: var(--a-margin); }
+.overlay > * { position: relative; margin-right: 22px; }
+.ov-mark { font-size: 26px; transform: rotate(-2deg); transform-origin: left; }
+.overlay h1 { font-size: 34px; }
+.recap li span { background: #fff; border: 1.5px solid var(--a-ok); }
+
+@media (prefers-reduced-motion: reduce) {
+  .screen, .sheet, .scrim, .cbar i { transition-duration: .01s; }
+  .seg.now, .msg, .paid, .free-note { animation: none; }
+}
+</style>
+</head>
+<body>
+
+
+<div class="stage">
+  <header class="rail">
+    <div class="rail-top">
+      <div class="who-row"><span class="who" id="who" hidden></span><span class="step-label" id="stepLabel">Демо · 6 шагов</span></div>
+      <div class="ctrls">
+        <button class="ctrl" id="btnPause" aria-label="Пауза" disabled>
+          <svg viewBox="0 0 16 16" fill="currentColor" id="icoPause"><rect x="3" y="2" width="3.5" height="12" rx="1"/><rect x="9.5" y="2" width="3.5" height="12" rx="1"/></svg>
+        </button>
+        <button class="ctrl" id="btnRestart" aria-label="Сначала" disabled>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 8a5 5 0 1 0 1.6-3.7"/><path d="M3 2.5v3h3"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="segs" id="segs"><i class="seg"></i><i class="seg"></i><i class="seg"></i><i class="seg"></i><i class="seg"></i><i class="seg t"></i></div>
+    <div class="cap" id="cap"><span>Как родитель находит репетитора и как мы на этом зарабатываем</span></div>
+  </header>
+
+  <div class="device">
+    <div class="app" id="app">
+      <div id="screens">
+
+        <!-- 1. Запрос -->
+        <section class="screen active" id="s-query">
+          <div class="bar"><span class="logo"><i></i>Подбор репетиторов</span><span class="bar-act">Войти</span></div>
+          <div class="scroll pad">
+            <h1 class="h1">Кого ищем?</h1>
+            <p class="lead">Выберите предмет, класс и цель, и сразу покажем подходящих педагогов.</p>
+            <div class="field"><div class="flabel">Предмет</div>
+              <div class="chips">
+                <button class="chip" data-t="math">Математика</button><button class="chip">Русский язык</button><button class="chip">Английский</button><button class="chip">Физика</button><button class="chip">Химия</button><button class="chip">Информатика</button>
+              </div></div>
+            <div class="field"><div class="flabel">Класс</div>
+              <div class="chips grades">
+                <button class="chip">5</button><button class="chip">6</button><button class="chip">7</button><button class="chip">8</button><button class="chip" data-t="g9">9</button><button class="chip">10</button><button class="chip">11</button>
+              </div></div>
+            <div class="field"><div class="flabel">Цель</div>
+              <div class="chips">
+                <button class="chip">Школьная программа</button><button class="chip" data-t="oge">ОГЭ</button><button class="chip">ЕГЭ</button><button class="chip">ВПР</button><button class="chip">Олимпиада</button>
+              </div></div>
+            <div class="loading" id="qLoad" hidden><span class="spin"></span>Подбираем педагогов</div>
+          </div>
+        </section>
+
+        <!-- 2. Выдача -->
+        <section class="screen" id="s-list">
+          <div class="bar"><span class="back">‹</span><span class="qpill">Математика · 9 класс · ОГЭ</span></div>
+          <div class="scroll pad" id="listScroll">
+            <div class="found"><b>27</b> педагогов подходят под запрос</div>
+            <div class="note"><i></i>Сверху — с подтвержденными результатами по 9 классу и ОГЭ</div>
+            <div class="list">
+              <article class="tcard top" data-t="t1">
+                <div class="ava c1">ЕС</div>
+                <div><div class="tname">Елена Соколова <span class="vbadge" title="Документы проверены"></span><span class="price">1 700 ₽<small> / час</small></span></div>
+                  <div class="tmeta">Математика · 7–11 класс · онлайн, очно</div>
+                  <div class="trow"><span class="rbadge">Подтверждено результатов: 4</span></div></div>
+              </article>
+              <article class="tcard top">
+                <div class="ava c2">ДО</div>
+                <div><div class="tname">Дмитрий Орлов <span class="vbadge"></span><span class="price">1 500 ₽<small> / час</small></span></div>
+                  <div class="tmeta">Математика · 5–9 класс · онлайн</div>
+                  <div class="trow"><span class="rbadge">Подтверждено результатов: 3</span></div></div>
+              </article>
+              <article class="tcard">
+                <div class="ava c3">ОК</div>
+                <div><div class="tname">Ольга Ким <span class="vbadge"></span><span class="price">2 000 ₽<small> / час</small></span></div>
+                  <div class="tmeta">Математика · 8–11 класс · очно</div>
+                  <div class="trow"><span class="rbadge">Подтверждено результатов: 2</span></div></div>
+              </article>
+              <article class="tcard" id="tNone">
+                <div class="ava c4">ПН</div>
+                <div><div class="tname">Павел Нестеров<span class="price">1 400 ₽<small> / час</small></span></div>
+                  <div class="tmeta">Математика · 5–11 класс · онлайн</div>
+                  <div class="trow"><span class="rbadge none">Пока нет подтвержденных результатов</span></div></div>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. Карточка -->
+        <section class="screen" id="s-card">
+          <div class="bar"><span class="back">‹</span><span class="bar-title">Педагог</span></div>
+          <div class="scroll pad" id="cardScroll">
+            <div class="prof">
+              <div class="ava lg c1">ЕС</div>
+              <div><h2>Елена Соколова</h2>
+                <div class="vline"><span class="vbadge"></span>Документы проверены</div></div>
+            </div>
+            <div class="facts">
+              <div class="fact"><b>1 700 ₽</b><span>онлайн, 60 мин</span></div>
+              <div class="fact"><b>2 000 ₽</b><span>очно, 60 мин</span></div>
+              <div class="fact"><b>7–11 класс</b><span>математика</span></div>
+              <div class="fact"><b>12 лет</b><span>стаж</span></div>
+            </div>
+            <div class="sec-h" id="resHead"><h3>Результаты учеников</h3><span>4 подтверждено</span></div>
+            <div class="results">
+              <div class="res" data-r="1"><div><div class="res-t">9 класс · ОГЭ</div><div class="res-s">Подтвердил родитель ученика</div></div>
+                <div class="mark"><span class="from">3</span><span class="arr">→</span><span class="to">5</span></div></div>
+              <div class="res" data-r="2"><div><div class="res-t">9 класс · ОГЭ</div><div class="res-s">Подтвердил родитель ученика</div></div>
+                <div class="mark"><span class="from">3</span><span class="arr">→</span><span class="to">4</span></div></div>
+              <div class="res" data-r="3"><div><div class="res-t">9 класс · ОГЭ</div><div class="res-s">Подтвердил родитель ученика</div></div>
+                <div class="mark"><span class="from">2</span><span class="arr">→</span><span class="to">4</span></div></div>
+              <div class="res"><div><div class="res-t">11 класс · ЕГЭ, профиль</div><div class="res-s">Подтвердил родитель ученика</div></div>
+                <div class="mark pts"><span class="from">54</span><span class="arr">→</span><span class="to">78</span></div></div>
+            </div>
+            <div class="sched">Свободное время: пн, ср, пт, 16:00–20:00</div>
+          </div>
+          <div class="foot"><button class="btn" data-t="write">Написать педагогу</button></div>
+        </section>
+
+        <!-- 4. Обращение -->
+        <section class="screen" id="s-ask">
+          <div class="bar"><span class="back">‹</span><span class="bar-title">Сообщение педагогу</span></div>
+          <div class="scroll pad">
+            <div class="to-row"><span class="ava sm c1">ЕС</span>Елена Соколова</div>
+            <div class="ctx"><b>Математика · 9 класс · ОГЭ</b>Подставили из вашего запроса</div>
+            <div class="field"><div class="q-h">1. Цель занятий</div>
+              <div class="chips"><button class="chip" data-t="a1">Сдать ОГЭ на 5</button><button class="chip">Закрыть пробелы</button><button class="chip">Держать уровень</button></div></div>
+            <div class="field"><div class="q-h">2. Удобные дни и время</div>
+              <div class="chips"><button class="chip" data-t="a2">Будни вечером</button><button class="chip">Выходные</button><button class="chip">Утро</button></div></div>
+            <div class="field"><div class="q-h">3. Формат</div>
+              <div class="chips"><button class="chip" data-t="a3">Онлайн</button><button class="chip">Очно</button></div></div>
+          </div>
+          <div class="foot"><button class="btn off" data-t="send">Отправить</button></div>
+        </section>
+
+        <!-- 5. Переписка, запись, оплата -->
+        <section class="screen" id="s-chat">
+          <div class="bar"><span class="back">‹</span><span class="ava sm c1">ЕС</span>
+            <span class="bar-title">Елена Соколова</span></div>
+          <div class="scroll">
+            <div class="chat-body">
+              <div class="msg out">Математика · 9 класс · ОГЭ
+                <dl><dt>Цель</dt><dd>сдать ОГЭ на 5</dd><dt>Время</dt><dd>будни вечером</dd><dt>Формат</dt><dd>онлайн</dd></dl></div>
+              <div class="typing" id="typing" hidden><i></i><i></i><i></i></div>
+              <div class="msg in" id="reply" hidden>Здравствуйте! Начнем с разбора пробника. Могу в среду в 18:00, онлайн.</div>
+            </div>
+          </div>
+          <div class="composer">
+            <button class="book" data-t="book">Записаться на занятие</button>
+            <div class="input">Сообщение</div>
+          </div>
+          <div class="scrim" id="scrim"></div>
+          <div class="sheet" id="sheet">
+            <div class="grab"></div>
+            <div id="sheetForm" style="display:grid;gap:14px">
+              <h3>Запись на занятие</h3>
+              <div class="field"><div class="flabel">Формат</div><div class="chips"><button class="chip sel">Онлайн</button><button class="chip">Очно</button></div></div>
+              <div class="field"><div class="flabel">Дата</div>
+                <div class="chips"><button class="chip">вт, 20 окт</button><button class="chip" data-t="day">ср, 21 окт</button><button class="chip">чт, 22 окт</button></div></div>
+              <div class="field"><div class="flabel">Время</div>
+                <div class="chips"><button class="chip">17:00</button><button class="chip" data-t="time">18:00</button><button class="chip">19:00</button></div></div>
+              <div class="sum"><span>Цена педагога за онлайн-занятие</span><b>1 700 ₽</b></div>
+              <button class="btn off" data-t="pay">Оплатить картой</button>
+            </div>
+            <div class="paid" id="paid" hidden>
+              <div class="ok"></div>
+              <b>Оплачено</b>
+              <span>Занятие в ср, 21 окт, 18:00, онлайн</span>
+              <span>Чек об оплате сформирован</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- 6. Кабинет репетитора -->
+        <section class="screen swap" id="s-cab">
+          <div class="bar"><span class="bar-title">Кабинет</span><span class="role">Репетитор</span></div>
+          <div class="scroll pad">
+            <span class="when" id="when">После первого занятия</span>
+            <div class="pair">
+              <div class="pair-h"><span class="ava sm c2">А</span><div><b>Аня, 9 класс</b><span>Математика · ОГЭ · онлайн</span></div></div>
+              <div class="cnt">
+                <div class="cnt-top"><span>Занятия через сервис</span><b id="cntN">1 из 5</b></div>
+                <div class="dots" id="dots"><i class="on"></i><i></i><i></i><i></i><i></i><i class="free"></i></div>
+                <div class="dots-lbl"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6+ без нас</span></div>
+              </div>
+              <div class="rows">
+                <div><span>Оплата за занятие</span><span>1 700 ₽</span></div>
+                <div class="minus"><span>Комиссия сервиса 20%</span><span id="feeNow">−340 ₽</span></div>
+                <div class="total"><span>Вам</span><span id="netNow">1 360 ₽</span></div>
+              </div>
+              <div class="cap-bar">
+                <div>Удержано с этой пары: <b id="feeSum">340 ₽</b> из 1 700 ₽ максимум</div>
+                <div class="cbar"><i id="cbar"></i></div>
+              </div>
+            </div>
+            <div class="free-note" id="freeNote" hidden><span class="ok"></span>Комиссия больше не удерживается. Дальше вы с Аней занимаетесь напрямую</div>
+          </div>
+        </section>
+
+      </div>
+
+      <div class="switch" id="switch"><small>Смена роли</small><b>Теперь глазами репетитора</b><span>Елена Соколова открывает кабинет после первого занятия с Аней</span></div>
+      <div class="tap" id="tap"></div>
+
+      <div class="overlay" id="ovStart">
+        <div class="ov-mark">демо первого выпуска</div>
+        <h1>Подбор репетиторов</h1>
+        <p>Две роли: сначала родитель ищет педагога по математике для девятиклассницы и оплачивает первое занятие, потом репетитор смотрит, сколько удержал сервис. Около 50 секунд, смотреть можно без звука.</p>
+        <button class="btn" id="btnStart">Смотреть</button>
+        <p class="fine">Педагоги, ученики и цены в демо вымышленные.</p>
+      </div>
+
+      <div class="overlay" id="ovEnd" hidden>
+        <div class="ov-mark">первый выпуск</div>
+        <h1>Что вы только что увидели</h1>
+        <ul class="recap">
+          <li><span></span>Список педагогов сразу после запроса, без анкеты</li>
+          <li><span></span>Выбор по подтвержденным результатам учеников</li>
+          <li><span></span>Переписка с педагогом, запись и оплата в сервисе</li>
+          <li><span></span>Комиссия 20% только с первых 5 занятий, не больше 1 700 ₽ с пары</li>
+        </ul>
+        <button class="btn" id="btnAgain">Смотреть еще раз</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var app = document.getElementById('app');
+  var screens = document.getElementById('screens');
+  var TPL = screens.innerHTML;
+  var tapEl = document.getElementById('tap');
+  var capEl = document.getElementById('cap');
+  var stepLabel = document.getElementById('stepLabel');
+  var who = document.getElementById('who');
+  var sw = document.getElementById('switch');
+  var segs = Array.prototype.slice.call(document.querySelectorAll('.seg'));
+  var btnPause = document.getElementById('btnPause');
+  var btnRestart = document.getElementById('btnRestart');
+  var ovStart = document.getElementById('ovStart');
+  var ovEnd = document.getElementById('ovEnd');
+  var runId = 0, paused = false;
+
+  var STEPS = [
+    { role: 'Родитель', text: 'Предмет, класс, цель — и сразу список педагогов' },
+    { role: 'Родитель', text: 'Сверху — педагоги с подтвержденными результатами' },
+    { role: 'Родитель', text: 'Выбор по результатам учеников, а не по дипломам' },
+    { role: 'Родитель', text: 'Три вопроса — и у репетитора весь контекст' },
+    { role: 'Родитель', text: 'Переписка с педагогом, запись и оплата картой' },
+    { role: 'Репетитор', text: 'Репетитор видит, сколько удержал сервис и когда ученик станет его' }
+  ];
+
+  function $(s) { return screens.querySelector(s); }
+
+  function wait(ms) {
+    var id = runId;
+    return new Promise(function (resolve, reject) {
+      var left = ms, last = performance.now();
+      function tick(now) {
+        if (id !== runId) return reject('cancel');
+        if (!paused) left -= (now - last);
+        last = now;
+        if (left <= 0) resolve(); else requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    });
+  }
+
+  function caption(text) {
+    capEl.classList.add('fade');
+    setTimeout(function () {
+      capEl.innerHTML = '<span></span>';
+      capEl.firstChild.textContent = text;
+      capEl.classList.remove('fade');
+    }, 220);
+  }
+
+  function step(i) {
+    segs.forEach(function (s, k) {
+      s.classList.toggle('done', k < i);
+      s.classList.toggle('now', k === i);
+    });
+    stepLabel.textContent = 'Шаг ' + (i + 1) + ' из 6';
+    who.hidden = false;
+    who.className = 'who ' + (STEPS[i].role === 'Родитель' ? 'parent' : 'tutor');
+    who.textContent = 'Глазами ' + (STEPS[i].role === 'Родитель' ? 'родителя' : 'репетитора');
+    caption(STEPS[i].text);
+  }
+
+  function show(id) {
+    var cur = screens.querySelector('.screen.active');
+    if (cur) { cur.classList.remove('active'); cur.classList.add('past'); }
+    $('#' + id).classList.add('active');
+  }
+
+  function tap(el) {
+    var a = app.getBoundingClientRect(), r = el.getBoundingClientRect();
+    tapEl.style.left = (r.left - a.left + r.width / 2) + 'px';
+    tapEl.style.top = (r.top - a.top + r.height / 2) + 'px';
+    tapEl.classList.remove('go'); void tapEl.offsetWidth; tapEl.classList.add('go');
+    return wait(230).then(function () {
+      el.classList.add('pressed');
+      return wait(150);
+    }).then(function () { el.classList.remove('pressed'); });
+  }
+
+  function scrollTo(box, top) { box.scrollTo({ top: top, behavior: 'smooth' }); }
+
+  function reset() {
+    screens.innerHTML = TPL;
+    ovEnd.hidden = true;
+    sw.classList.remove('on');
+    paused = false; app.classList.remove('paused'); setPauseIcon();
+  }
+
+  function setPauseIcon() {
+    btnPause.setAttribute('aria-label', paused ? 'Продолжить' : 'Пауза');
+    btnPause.innerHTML = paused
+      ? '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2.5v11l9-5.5z"/></svg>'
+      : '<svg viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="3.5" height="12" rx="1"/><rect x="9.5" y="2" width="3.5" height="12" rx="1"/></svg>';
+  }
+
+  async function run() {
+    runId++;
+    reset();
+    btnPause.disabled = false; btnRestart.disabled = false;
+    try {
+      // 1. Запрос
+      step(0);
+      await wait(1300);
+      await tap($('[data-t="math"]')); $('[data-t="math"]').classList.add('sel');
+      await wait(450);
+      await tap($('[data-t="g9"]')); $('[data-t="g9"]').classList.add('sel');
+      await wait(450);
+      await tap($('[data-t="oge"]')); $('[data-t="oge"]').classList.add('sel');
+      $('#qLoad').hidden = false;
+      await wait(700);
+
+      // 2. Выдача
+      show('s-list'); step(1);
+      await wait(2300);
+      var ls = $('#listScroll');
+      scrollTo(ls, ls.scrollHeight);
+      await wait(1700);
+      scrollTo(ls, 0);
+      await wait(900);
+      await tap($('[data-t="t1"]'));
+
+      // 3. Карточка
+      show('s-card'); step(2);
+      await wait(1500);
+      scrollTo($('#cardScroll'), $('#resHead').offsetTop - 14);
+      await wait(900);
+      for (var r = 1; r <= 3; r++) { $('[data-r="' + r + '"]').classList.add('lit'); await wait(350); }
+      await wait(1900);
+      await tap($('[data-t="write"]'));
+
+      // 4. Обращение
+      show('s-ask'); step(3);
+      await wait(1500);
+      await tap($('[data-t="a1"]')); $('[data-t="a1"]').classList.add('sel');
+      await wait(450);
+      await tap($('[data-t="a2"]')); $('[data-t="a2"]').classList.add('sel');
+      await wait(450);
+      await tap($('[data-t="a3"]')); $('[data-t="a3"]').classList.add('sel');
+      $('[data-t="send"]').classList.remove('off');
+      await wait(700);
+      await tap($('[data-t="send"]'));
+
+      // 5. Переписка, запись, оплата
+      show('s-chat'); step(4);
+      await wait(900);
+      $('#typing').hidden = false;
+      await wait(1300);
+      $('#typing').hidden = true; $('#reply').hidden = false;
+      await wait(1400);
+      await tap($('[data-t="book"]'));
+      $('#scrim').classList.add('on'); $('#sheet').classList.add('open');
+      await wait(1100);
+      await tap($('[data-t="day"]')); $('[data-t="day"]').classList.add('sel');
+      await wait(400);
+      await tap($('[data-t="time"]')); $('[data-t="time"]').classList.add('sel');
+      $('[data-t="pay"]').classList.remove('off');
+      await wait(700);
+      var pay = $('[data-t="pay"]');
+      await tap(pay);
+      pay.innerHTML = '<span class="spin"></span>Оплачиваем';
+      await wait(1100);
+      $('#sheetForm').style.display = 'none'; $('#paid').hidden = false;
+      await wait(2000);
+
+      // 6. Кабинет репетитора
+      who.className = 'who tutor'; who.textContent = 'Глазами репетитора';
+      sw.classList.add('on');
+      caption('Смена роли: теперь кабинет репетитора');
+      await wait(1900);
+      show('s-cab'); step(5);
+      await wait(400);
+      sw.classList.remove('on');
+      await wait(3000);
+      caption('Комиссия только с первых 5 занятий, максимум 1 700 ₽ с пары');
+      $('#when').textContent = 'Перемотка на 5 недель вперед'; $('#when').classList.add('ff');
+      var dots = screens.querySelectorAll('#dots i');
+      for (var n = 2; n <= 5; n++) {
+        await wait(550);
+        dots[n - 1].classList.add('on');
+        $('#cntN').textContent = n + ' из 5';
+        $('#feeSum').textContent = (340 * n).toLocaleString('ru-RU') + ' ₽';
+        $('#cbar').style.width = (20 * n) + '%';
+      }
+      await wait(900);
+      dots[5].classList.add('on');
+      $('#freeNote').hidden = false;
+      await wait(3600);
+
+      // Финал
+      segs.forEach(function (s) { s.classList.remove('now'); s.classList.add('done'); });
+      stepLabel.textContent = 'Готово';
+      caption('Это весь путь сделки в первом выпуске');
+      ovEnd.hidden = false;
+      btnPause.disabled = true;
+    } catch (e) { if (e !== 'cancel') throw e; }
+  }
+
+  document.getElementById('btnStart').addEventListener('click', function () { ovStart.hidden = true; run(); });
+  document.getElementById('btnAgain').addEventListener('click', run);
+  btnRestart.addEventListener('click', function () { ovStart.hidden = true; run(); });
+  btnPause.addEventListener('click', function () {
+    paused = !paused;
+    app.classList.toggle('paused', paused);
+    setPauseIcon();
+  });
+})();
+</script>
+
+</body>
+</html>
